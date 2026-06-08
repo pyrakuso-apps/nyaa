@@ -28,7 +28,7 @@
       },
       "keyword": {
         "type": "string",
-        "description": "Keyword appended to every search query. Default is 'Dubbed'.",
+        "description": "Keyword appended to every search query. Default is 'vostfr'.",
         "default": "vostfr"
       }
     }
