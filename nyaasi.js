@@ -1,0 +1,332 @@
+var s = {
+    _fmt(t, e, n) {},
+    info: (t, e) => s._fmt("INFO", t, e),
+    warn: (t, e) => s._fmt("WARN", t, e),
+    error: (t, e) => s._fmt("ERROR", t, e),
+    debug: (t, e) => s._fmt("DEBUG", t, e),
+  },
+  S = "https://nyaa.si",
+  B = "1_3",
+  M = "0",
+  w = "",
+  y = 15e3,
+  I = 2;
+function N(t) {
+  if (!t) return 0;
+  let e = t.match(/([\d.]+)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB)/i);
+  if (!e) return 0;
+  let n = parseFloat(e[1]);
+  switch (e[2].toUpperCase()) {
+    case "KIB":
+    case "KB":
+      return Math.round(n * 1024);
+    case "MIB":
+    case "MB":
+      return Math.round(n * 1024 ** 2);
+    case "GIB":
+    case "GB":
+      return Math.round(n * 1024 ** 3);
+    case "TIB":
+    case "TB":
+      return Math.round(n * 1024 ** 4);
+    default:
+      return 0;
+  }
+}
+function m(t, e) {
+  let n = t.match(new RegExp(`<nyaa:${e}>([^<]*)<\\/nyaa:${e}>`));
+  return n ? n[1].trim() : "";
+}
+function C(t, e) {
+  let n = t.match(
+    new RegExp(`<${e}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${e}>`),
+  );
+  return n ? n[1].trim() : "";
+}
+async function U(t, e, n = I) {
+  for (let o = 0; o <= n; o++) {
+    let r = new AbortController(),
+      a = setTimeout(() => r.abort(), y);
+    s.info(`Fetch attempt ${o + 1}/${n + 1}`, { url: e });
+    try {
+      let c = await t(e, {
+        signal: r.signal,
+        headers: { Accept: "application/rss+xml, application/xml, text/xml" },
+      });
+      if ((clearTimeout(a), !c.ok))
+        throw new Error(
+          `Nyaa returned HTTP ${c.status}. The site may be down or blocked in your region.`,
+        );
+      return (s.info("Fetch OK", { status: c.status, url: e }), c);
+    } catch (c) {
+      if (
+        (clearTimeout(a),
+        s.warn(`Fetch failed (attempt ${o + 1})`, { url: e, error: c.message }),
+        o === n)
+      )
+        throw c.name === "AbortError"
+          ? new Error(
+              `Nyaa request timed out after ${y / 1e3}s. The site may be slow or blocked.`,
+            )
+          : new Error(`Could not reach Nyaa: ${c.message}`);
+      let l = 500 * (o + 1);
+      (s.debug(`Retrying in ${l}ms...`),
+        await new Promise((i) => setTimeout(i, l)));
+    }
+  }
+}
+function L(t, e) {
+  let n = e.toString(),
+    o = n.padStart(2, "0"),
+    r = n.padStart(3, "0");
+  return [
+    `[-\u2013\\s]\\s*${r}[\\s\\[\\]vV._(]`,
+    `[-\u2013\\s]\\s*${o}[\\s\\[\\]vV._(]`,
+    `[Ee]${o}[^\\d]`,
+    `\\[${o}\\]`,
+    `\\[${r}\\]`,
+  ].some((c) => new RegExp(c).test(t));
+}
+function O(t) {
+  return t.replace(/[<>"]/g, " ").replace(/\s+/g, " ").trim();
+}
+function h(t, e) {
+  let n = e?.trim();
+  return n ? `${t} ${n}` : t;
+}
+function G(t, e = {}) {
+  let n = (e.domain?.trim() || S).replace(/\/+$/, ""),
+    o = e.category?.trim() || B,
+    r = e.filter?.trim() || M,
+    a = new URLSearchParams({
+      page: "rss",
+      q: t,
+      c: o,
+      f: r,
+      s: "seeders",
+      o: "desc",
+    });
+  return `${n}/?${a.toString()}`;
+}
+function P(t, { resolution: e, isBatch: n, episode: o }) {
+  if (!t.includes("<rss"))
+    throw new Error(
+      "Nyaa returned a non-RSS response. The site may have changed or be blocking requests.",
+    );
+  let r = [],
+    a = /<item>([\s\S]*?)<\/item>/g,
+    c,
+    l = 0,
+    i = 0,
+    f = 0;
+  for (; (c = a.exec(t)) !== null; ) {
+    let u = c[1],
+      d = C(u, "title");
+    if (!d) continue;
+    let g = m(u, "categoryId");
+    if (g && !g.startsWith("1_")) {
+      (l++, s.debug(`Skipped (category ${g})`, { title: d }));
+      continue;
+    }
+    if (e && !d.toLowerCase().includes(e)) {
+      (i++, s.debug(`Skipped (resolution mismatch, want ${e})`, { title: d }));
+      continue;
+    }
+    let p = m(u, "infoHash").toLowerCase();
+    if (!p) {
+      (f++, s.warn("Skipped (no infoHash)", { title: d }));
+      continue;
+    }
+    let F = (o != null ? L(d, o) : !0) ? "high" : "medium",
+      x = `magnet:?xt=urn:btih:${p}&dn=${encodeURIComponent(d)}&tr=http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce`,
+      $ = parseInt(m(u, "seeders") || "0", 10),
+      b = parseInt(m(u, "leechers") || "0", 10),
+      _ = parseInt(m(u, "downloads") || "0", 10),
+      R = N(m(u, "size")),
+      A = C(u, "pubDate"),
+      D = A ? new Date(A) : new Date(0),
+      E;
+    ((n || /batch|season|complete|s\d{2}(?!\d)|vol\.?\s*\d/i.test(d)) &&
+      (E = "batch"),
+      s.debug("Parsed result", {
+        title: d,
+        accuracy: F,
+        type: E,
+        seeders: $,
+        leechers: b,
+        size: R,
+      }),
+      r.push({
+        title: d,
+        link: x,
+        hash: p,
+        seeders: $ >= 3e4 ? 0 : $,
+        leechers: b >= 3e4 ? 0 : b,
+        downloads: _,
+        size: R,
+        date: D,
+        accuracy: F,
+        type: E,
+      }));
+  }
+  return (
+    s.info("parseRSS complete", {
+      total: r.length,
+      skippedCategory: l,
+      skippedResolution: i,
+      skippedNoHash: f,
+    }),
+    r
+  );
+}
+async function T(t, e, n, o) {
+  s.info("fetchFirstResults start", { queries: e, parseOpts: n });
+  let r = o.keyword?.trim() || w,
+    a = o.category || B,
+    c = r ? [a] : [a, "1_3"];
+  for (let l of e)
+    for (let i of c)
+      try {
+        let f = { ...o, category: i },
+          u = G(O(l), f);
+        s.info("Trying query", { query: l, category: i, url: u });
+        let g = await (await U(t, u)).text(),
+          p = P(g, n);
+        if (p.length > 0)
+          return (
+            s.info("Query succeeded", {
+              query: l,
+              category: i,
+              resultCount: p.length,
+            }),
+            p
+          );
+        s.info("Query returned 0 results, trying next", {
+          query: l,
+          category: i,
+        });
+      } catch (f) {
+        throw (s.error("Query threw error", { query: l, error: f.message }), f);
+      }
+  return (s.warn("All queries exhausted, returning empty"), []);
+}
+function k(t, e) {
+  if (!e?.length) return t;
+  let n = e.map((r) => r.toLowerCase()),
+    o = t.filter((r) => !n.some((a) => r.title.toLowerCase().includes(a)));
+  return (
+    s.debug("applyExclusions", {
+      before: t.length,
+      after: o.length,
+      exclusions: e,
+    }),
+    o
+  );
+}
+var K = {
+  async test(t) {
+    s.info("test() called");
+    let e = t?.fetch ?? fetch,
+      n = new AbortController(),
+      o = setTimeout(() => n.abort(), y);
+    try {
+      let r = await e(`${S}/?page=rss`, { signal: n.signal });
+      if (!r.ok)
+        throw new Error(
+          `Nyaa returned HTTP ${r.status}. The site may be down or blocked in your region.`,
+        );
+      return (s.info("test() passed"), !0);
+    } catch (r) {
+      throw r.name === "AbortError"
+        ? new Error(
+            `Nyaa did not respond within ${y / 1e3}s. Check your network or whether nyaa.si is blocked.`,
+          )
+        : new Error(`Could not reach Nyaa: ${r.message}`);
+    } finally {
+      clearTimeout(o);
+    }
+  },
+  async single(t, e = {}) {
+    if (
+      (s.info("single() called", {
+        titles: t.titles,
+        episode: t.episode,
+        resolution: t.resolution,
+      }),
+      !t.titles?.length)
+    )
+      return [];
+    let n = e.keyword?.trim() || w,
+      o = t.episode != null ? t.episode.toString() : null,
+      r = o ? o.padStart(2, "0") : null,
+      a = [];
+    for (let i of t.titles.slice(0, 3))
+      (r && (a.push(h(`${i} - ${r}`, n)), a.push(h(`${i} ${r}`, n))),
+        a.push(h(i, n)));
+    s.debug("Query variants", a);
+    let c = await T(
+        t.fetch,
+        a,
+        { resolution: t.resolution || "", isBatch: !1, episode: t.episode },
+        e,
+      ),
+      l = k(c, t.exclusions);
+    return (
+      s.info("single() done", { rawCount: c.length, filteredCount: l.length }),
+      l
+    );
+  },
+  async batch(t, e = {}) {
+    if (
+      (s.info("batch() called", {
+        titles: t.titles,
+        episodeCount: t.episodeCount,
+      }),
+      !t.titles?.length)
+    )
+      return [];
+    let n = e.keyword?.trim() || w,
+      o = t.titles[0],
+      r = [
+        h(`${o} batch`, n),
+        h(`${o} complete`, n),
+        h(`${o} season`, n),
+        ...t.titles.slice(0, 3).map((i) => h(i, n)),
+      ],
+      a = await T(
+        t.fetch,
+        r,
+        { resolution: t.resolution || "", isBatch: !0 },
+        e,
+      ),
+      c = a.filter(
+        (i) =>
+          i.type === "batch" ||
+          (t.episodeCount && i.title.match(/\d+\s*[-~]\s*\d+/)),
+      );
+    s.info("batch() pack filter", { before: a.length, after: c.length });
+    let l = k(c.length ? c : a, t.exclusions);
+    return (s.info("batch() done", { finalCount: l.length }), l);
+  },
+  async movie(t, e = {}) {
+    if (
+      (s.info("movie() called", { titles: t.titles, resolution: t.resolution }),
+      !t.titles?.length)
+    )
+      return [];
+    let n = e.keyword?.trim() || w,
+      o = t.titles.slice(0, 3).map((c) => h(c, n)),
+      r = await T(
+        t.fetch,
+        o,
+        { resolution: t.resolution || "", isBatch: !1 },
+        e,
+      ),
+      a = k(r, t.exclusions);
+    return (
+      s.info("movie() done", { rawCount: r.length, filteredCount: a.length }),
+      a
+    );
+  },
+};
+export { K as default };
