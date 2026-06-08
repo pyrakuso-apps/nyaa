@@ -25,6 +25,11 @@
         "type": "string",
         "description": "Quality filter. 0 = no filter, 1 = no remakes, 2 = trusted only.",
         "default": "0"
+      },
+      "keyword": {
+        "type": "string",
+        "description": "Keyword appended to every search query. Default is 'Dubbed'.",
+        "default": "vostfr"
       }
     }
   }
