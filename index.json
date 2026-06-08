@@ -1,0 +1,31 @@
+[
+  {
+    "manifestVersion": 2,
+    "name": "Nyaa",
+    "id": "anime.nyaasi",
+    "version": "2.1.0",
+    "description": "Tes animes préférés sur ton site préféré",
+    "type": "torrent",
+    "accuracy": "low",
+    "updatePeers": true,
+    "ratio": 0,
+    "media": "sub",
+    "languages": ["FR"],
+    "url": "aHR0cHM6Ly9ueWFhLnNp",
+    "icon": "https://nyaa.si/static/favicon.png",
+    "update": "https://raw.githubusercontent.com/Tanzim2000/hayase-extension/refs/heads/main/index.json",
+    "code": "https://raw.githubusercontent.com/Tanzim2000/hayase-extension/refs/heads/main/dist/nyaasi.js",
+    "options": {
+      "domain": {
+        "type": "string",
+        "description": "Nyaa base URL. Change to a mirror (e.g. https://nyaa.land) if nyaa.si is blocked.",
+        "default": "https://nyaa.si"
+      },
+      "filter": {
+        "type": "string",
+        "description": "Quality filter. 0 = no filter, 1 = no remakes, 2 = trusted only.",
+        "default": "0"
+      }
+    }
+  }
+]
