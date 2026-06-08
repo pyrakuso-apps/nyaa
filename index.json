@@ -14,7 +14,7 @@
     "url": "aHR0cHM6Ly9ueWFhLnNp",
     "icon": "https://nyaa.si/static/favicon.png",
     "update": "https://raw.githubusercontent.com/pyrakuso-apps/nyaa/refs/heads/main/index.json",
-    "code": "https://raw.githubusercontent.com/Tanzim2000/hayase-extension/refs/heads/main/dist/nyaasi.js",
+    "code": "https://raw.githubusercontent.com/pyrakuso-apps/nyaa/refs/heads/main/nyaasi.js",
     "options": {
       "domain": {
         "type": "string",
